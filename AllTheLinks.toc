@@ -1,0 +1,20 @@
+## Interface: 110200
+## Title: AllTheLinks
+## Notes: Adds external profile links from several sites to players drop down menu.
+## Version: 1.4.7
+## Author: OrenYoh
+## IconTexture: Interface\AddOns\AllTheLinks\images\allthelinks
+## X-Curse-Project-ID: 819298
+## X-Wago-ID: rNkPpB6a
+
+# DBs
+db\db_realms.lua
+
+# Locales
+i18n\enUS.lua
+i18n\frFR.lua
+i18n\ruRU.lua
+i18n\zhCN.lua
+i18n\zhTW.lua
+
+AllTheLinks.lua
