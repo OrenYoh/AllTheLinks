@@ -1,0 +1,6 @@
+package-as: AllTheLinks
+
+ignore:
+  - .github
+  - .gitignore
+  - .pkgmeta
