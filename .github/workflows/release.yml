@@ -3,7 +3,7 @@ name: Package and release
 on:
     push:
         tags:
-            - '**'
+            - 'v**'
 env:
     CF_API_KEY: ${{ secrets.CURSE_TOKEN }}
     WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
@@ -23,3 +23,5 @@ jobs:
 
             - name: Package and release
               uses: BigWigsMods/packager@v2.4.3
+              with:
+                  args: -n "{package-name}-{project-version}{nolib}{classic}:{package-name}-{project-version}{classic}{nolib}"
