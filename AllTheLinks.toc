@@ -1,7 +1,7 @@
-## Interface: 110205
+## Interface: 110207
 ## Title: AllTheLinks
 ## Notes: Adds external profile links from several sites to players drop down menu.
-## Version: 1.4.8
+## Version: 1.4.9
 ## Author: OrenYoh
 ## IconTexture: Interface\AddOns\AllTheLinks\images\allthelinks
 ## X-Curse-Project-ID: 819298
