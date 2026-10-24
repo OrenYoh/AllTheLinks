@@ -22,6 +22,6 @@ jobs:
                   fetch-depth: 0
 
             - name: Package and release
-              uses: BigWigsMods/packager@v2.4.3
+              uses: BigWigsMods/packager@v2.6.1
               with:
                   args: -n "{package-name}-{project-version}{nolib}{classic}:{package-name}-{project-version}{classic}{nolib}"
