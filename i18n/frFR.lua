@@ -7,6 +7,8 @@ local L = ns.L
 
 L["TITLE"] = "All the links";
 L["LINKTO"] = "Lien vers : ";
+L["COPYHINT"] = "Appuyez sur Ctrl+C pour copier le lien et fermer cette fenêtre.";
+L["LINKCOPIED"] = "Lien copié : ";
 L["LINKDESC"] = "Si vous avez une erreur, c'est possiblement que le profil du joueur n'existe pas encore\nsur le site (il n'a jamais été scanné), vous devrez le chercher manuellement.";
 
 L["ARMORY"] = "Armurerie WoW";

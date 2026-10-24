@@ -9,6 +9,8 @@ local L = ns.L
 
 L["TITLE"] = "All the links";
 L["LINKTO"] = "连结至: ";
+L["COPYHINT"] = "按 Ctrl+C 复制链接并关闭此窗口。";
+L["LINKCOPIED"] = "链接已复制：";
 L["LINKDESC"] = "如果出现错误就代表该网站还未录入该玩家的信息。";
 
 L["ARMORY"] = "英雄榜";

@@ -8,6 +8,8 @@ end});
 
 L["TITLE"] = "All the links";
 L["LINKTO"] = "Link to: ";
+L["COPYHINT"] = "Press Ctrl+C to copy the link and close this window.";
+L["LINKCOPIED"] = "Link copied: ";
 L["LINKDESC"] = "If you have an error, the player's profile may not exist yet on the website\n(no one ever asked for that profile to be scanned), and you may have to look for it manually.";
 
 L["ARMORY"] = "WoW Armory";

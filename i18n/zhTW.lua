@@ -9,6 +9,8 @@ local L = ns.L
 
 L["TITLE"] = "All the links";
 L["LINKTO"] = "引導至：";
+L["COPYHINT"] = "按 Ctrl+C 複製連結並關閉此視窗。";
+L["LINKCOPIED"] = "連結已複製：";
 L["LINKDESC"] = "如果出現錯誤就代表該網站還未收錄該玩家的資料。";
 
 L["ARMORY"] = "英雄榜";

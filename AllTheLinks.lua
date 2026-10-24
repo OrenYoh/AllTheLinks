@@ -13,6 +13,15 @@ local LINKS = {
     ["WARCRAFTLOGS"] = "https://www.warcraftlogs.com/character/%region%/%realmLower%/%name%"
 };
 
+-- Site icons (the sites' favicons), shown before each link in the menu
+local ICONS = {
+    ["ARMORY"] = "armory",
+    ["CHECKPVP"] = "checkpvp",
+    ["RAIDERIO"] = "raiderio",
+    ["WARCRAFTLOGS"] = "warcraftlogs",
+    ["WOWPROGRESS"] = "wowprogress",
+};
+
 -- Unit menus the links are added to (Blizzard's UnitPopup menus, tagged "MENU_UNIT_<menu>")
 local MENUS = {
     "SELF", "PLAYER", "ENEMY_PLAYER", "FOCUS", "PARTY", "RAID_PLAYER", "RAID", "ARENAENEMY",
@@ -84,10 +93,229 @@ local function getRealmSlug(realm)
     return string.lower(slug);
 end
 
+-- The link popup: a dark panel with a thin edge, a soft glow along its top, the site's icon and
+-- name as its title, and the link in a flat field selected for copying.
+local COLORS = {
+    body = { 0.07, 0.07, 0.075, 0.95 },
+    edge = { 0.8, 0.8, 0.8, 0.3 },
+    glow = { 0.7, 0.7, 0.72, 0.1 },
+    field = { 0.13, 0.13, 0.14, 1 },
+    fieldFocus = { 0.17, 0.17, 0.18, 1 },
+    fieldEdge = { 0.85, 0.85, 0.85 },
+    title = { 1, 1, 1 },
+    text = { 0.95, 0.95, 0.95 },
+    muted = { 0.62, 0.62, 0.64 },
+    close = { 0.75, 0.75, 0.75 },
+};
+-- How strong the field's edge is while idle, under the pointer and focused
+local FIELD_EDGE_ALPHA = { idle = 0.25, hover = 0.5, focus = 0.9 };
+local WIDTH, PADDING, HEADER, FIELD_HEIGHT = 560, 20, 22, 28;
+
 local ATLFrame;
-local ATLFrameEditBox;
-local ATLFrameEditBoxLabel;
-local ATLFrameEditBoxDescription;
+local ATLTitle;
+local ATLIcon;
+local ATLDescription;
+local ATLHint;
+local ATLField;
+
+-- A font of the given size, copied from one of the game's fonts so every alphabet keeps its glyphs
+local function createFont(name, base, size, color, shadow)
+    local font = CreateFont(name);
+    font:CopyFontObject(base);
+    local file, _, flags = base:GetFont();
+    font:SetFont(file, size, flags);
+    font:SetTextColor(color[1], color[2], color[3], 1);
+    if shadow then
+        font:SetShadowColor(0, 0, 0, 0.85);
+        font:SetShadowOffset(1, -1);
+    else
+        font:SetShadowOffset(0, 0);
+    end
+    return font;
+end
+
+-- A one pixel line along each side of a frame, drawn inside it
+local function createEdges(frame, r, g, b, a)
+    local edges = {};
+    for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
+        local line = frame:CreateTexture(nil, "BORDER");
+        line:SetColorTexture(r, g, b, 1);
+        line:SetAlpha(a);
+        if side == "TOP" or side == "BOTTOM" then
+            line:SetPoint(side .. "LEFT");
+            line:SetPoint(side .. "RIGHT");
+            line:SetHeight(1);
+        else
+            line:SetPoint("TOP" .. side);
+            line:SetPoint("BOTTOM" .. side);
+            line:SetWidth(1);
+        end
+        edges[side] = line;
+    end
+    return edges;
+end
+
+local function setEdgesAlpha(edges, a)
+    for _, line in pairs(edges) do
+        line:SetAlpha(a);
+    end
+end
+
+-- Ctrl+C (Cmd+C on Mac) copies the selected link (the game does that itself: addons can't use the
+-- clipboard), then the frame closes on the next frame, once the copy is done.
+local function onFieldKeyDown(self, key)
+    if key == "C" and (IsControlKeyDown() or IsMetaKeyDown()) then
+        local link = self:GetText();
+        C_Timer.After(0, function()
+            ATLFrame:Hide();
+            print("|cff33ff99" .. addonName .. "|r " .. L["LINKCOPIED"] .. link);
+        end);
+    end
+end
+
+local function updateField()
+    local state = ATLField:HasFocus() and "focus" or (ATLField:IsMouseOver() and "hover" or "idle");
+    local fill = state == "focus" and COLORS.fieldFocus or COLORS.field;
+    ATLField.fill:SetColorTexture(fill[1], fill[2], fill[3], fill[4]);
+    setEdgesAlpha(ATLField.edges, FIELD_EDGE_ALPHA[state]);
+end
+
+local function createLinkFrame()
+    local titleFont = createFont("ATLFontTitle", GameFontNormal, 16, COLORS.title, true);
+    local textFont = createFont("ATLFontText", GameFontNormal, 12, COLORS.text, false);
+    local mutedFont = createFont("ATLFontMuted", GameFontNormal, 12, COLORS.muted, false);
+    local smallFont = createFont("ATLFontSmall", GameFontNormal, 11, COLORS.muted, false);
+
+    ATLFrame = CreateFrame("Frame", "ATLLinkFrame", UIParent);
+    ATLFrame:SetFrameStrata("DIALOG");
+    ATLFrame:SetToplevel(true);
+    ATLFrame:SetClampedToScreen(true);
+    ATLFrame:SetWidth(WIDTH);
+    ATLFrame:SetPoint("CENTER", 0, 120);
+    ATLFrame:EnableMouse(true);
+    ATLFrame:SetMovable(true);
+    ATLFrame:RegisterForDrag("LeftButton");
+    ATLFrame:SetScript("OnDragStart", ATLFrame.StartMoving);
+    ATLFrame:SetScript("OnDragStop", ATLFrame.StopMovingOrSizing);
+    ATLFrame:Hide();
+
+    local body = ATLFrame:CreateTexture(nil, "BACKGROUND");
+    body:SetAllPoints();
+    body:SetColorTexture(unpack(COLORS.body));
+
+    -- The glow along the top, fading out downwards
+    local glow = ATLFrame:CreateTexture(nil, "BACKGROUND", nil, 1);
+    glow:SetPoint("TOPLEFT");
+    glow:SetPoint("TOPRIGHT");
+    glow:SetHeight(80);
+    glow:SetColorTexture(1, 1, 1, 1);
+    glow:SetBlendMode("ADD");
+    local g = COLORS.glow;
+    glow:SetGradient("VERTICAL", CreateColor(g[1], g[2], g[3], 0), CreateColor(g[1], g[2], g[3], g[4]));
+
+    local e = COLORS.edge;
+    createEdges(ATLFrame, e[1], e[2], e[3], e[4]);
+
+    -- Header: the site's icon and the title, the close button on the right
+    ATLIcon = ATLFrame:CreateTexture(nil, "ARTWORK");
+    ATLIcon:SetSize(HEADER, HEADER);
+    ATLIcon:SetPoint("TOPLEFT", PADDING, -PADDING);
+
+    -- The close button: an X drawn with two lines, lighter under the pointer
+    local close = CreateFrame("Button", nil, ATLFrame);
+    close:SetSize(20, 20);
+    close:SetPoint("TOPRIGHT", -12, -12);
+    local cross = {};
+    for i, corners in ipairs({ { "TOPLEFT", "BOTTOMRIGHT" }, { "BOTTOMLEFT", "TOPRIGHT" } }) do
+        local line = close:CreateLine(nil, "ARTWORK");
+        line:SetThickness(1.5);
+        line:SetStartPoint(corners[1], close, 5, corners[1] == "TOPLEFT" and -5 or 5);
+        line:SetEndPoint(corners[2], close, -5, corners[2] == "BOTTOMRIGHT" and 5 or -5);
+        cross[i] = line;
+    end
+    local function colorCross(color)
+        for _, line in ipairs(cross) do
+            line:SetColorTexture(color[1], color[2], color[3], 1);
+        end
+    end
+    colorCross(COLORS.close);
+    close:SetScript("OnEnter", function() colorCross(COLORS.title) end);
+    close:SetScript("OnLeave", function() colorCross(COLORS.close) end);
+    close:SetScript("OnClick", function() ATLFrame:Hide() end);
+
+    ATLTitle = ATLFrame:CreateFontString(nil, "ARTWORK");
+    ATLTitle:SetFontObject(titleFont);
+    ATLTitle:SetPoint("LEFT", ATLIcon, "RIGHT", 8, 0);
+    ATLTitle:SetPoint("RIGHT", close, "LEFT", -8, 0);
+    ATLTitle:SetJustifyH("LEFT");
+    ATLTitle:SetWordWrap(false);
+
+    ATLDescription = ATLFrame:CreateFontString(nil, "ARTWORK");
+    ATLDescription:SetFontObject(mutedFont);
+    ATLDescription:SetPoint("TOPLEFT", ATLIcon, "BOTTOMLEFT", 0, -12);
+    ATLDescription:SetWidth(WIDTH - PADDING * 2);
+    ATLDescription:SetJustifyH("LEFT");
+    ATLDescription:SetSpacing(2);
+    ATLDescription:SetText(L["LINKDESC"]);
+
+    -- The link, in a flat field: lighter than the panel, its edge brighter under the pointer and
+    -- while focused
+    ATLField = CreateFrame("EditBox", "ATLLinkFrameField", ATLFrame);
+    ATLField:SetHeight(FIELD_HEIGHT);
+    ATLField:SetPoint("TOPLEFT", ATLDescription, "BOTTOMLEFT", 0, -14);
+    ATLField:SetPoint("RIGHT", -PADDING, 0);
+    ATLField:SetFontObject(textFont);
+    ATLField:SetTextInsets(8, 8, 0, 0);
+    ATLField:SetAutoFocus(true);
+    ATLField.fill = ATLField:CreateTexture(nil, "BACKGROUND");
+    ATLField.fill:SetAllPoints();
+    local fe = COLORS.fieldEdge;
+    ATLField.edges = createEdges(ATLField, fe[1], fe[2], fe[3], FIELD_EDGE_ALPHA.idle);
+    ATLField:SetScript("OnEscapePressed", function() ATLFrame:Hide() end);
+    ATLField:SetScript("OnKeyDown", onFieldKeyDown);
+    ATLField:SetScript("OnEnter", updateField);
+    ATLField:SetScript("OnLeave", updateField);
+    ATLField:SetScript("OnEditFocusGained", function(self)
+        self:HighlightText();
+        updateField();
+    end);
+    ATLField:SetScript("OnEditFocusLost", updateField);
+    updateField();
+
+    ATLHint = ATLFrame:CreateFontString(nil, "ARTWORK");
+    ATLHint:SetFontObject(smallFont);
+    ATLHint:SetPoint("TOPLEFT", ATLField, "BOTTOMLEFT", 0, -8);
+    ATLHint:SetText(L["COPYHINT"]);
+
+    -- A short fade in when it opens
+    local fadeIn = ATLFrame:CreateAnimationGroup();
+    local alpha = fadeIn:CreateAnimation("Alpha");
+    alpha:SetFromAlpha(0);
+    alpha:SetToAlpha(1);
+    alpha:SetDuration(0.15);
+    alpha:SetSmoothing("OUT");
+    ATLFrame:SetScript("OnShow", function() fadeIn:Play() end);
+
+    tinsert(UISpecialFrames, ATLFrame:GetName());
+end
+
+local function showLinkFrame(site, link)
+    if ATLFrame == nil then
+        createLinkFrame();
+    end
+
+    ATLIcon:SetTexture("Interface\\AddOns\\" .. addonName .. "\\images\\" .. ICONS[site] .. ".png");
+    ATLTitle:SetText(L["LINKTO"] .. L[site]);
+    ATLField:SetText(link);
+    ATLField:SetCursorPosition(0);
+
+    -- As tall as what it holds: header, description, field and hint, with the padding around them
+    ATLFrame:SetHeight(PADDING + HEADER + 12 + ATLDescription:GetStringHeight() + 14 + FIELD_HEIGHT + 8
+        + ATLHint:GetStringHeight() + PADDING);
+    ATLFrame:Show();
+    ATLField:SetFocus();
+    ATLField:HighlightText();
+end
 
 local function openLinkFrame(data)
     local name = data.name
@@ -118,45 +346,7 @@ local function openLinkFrame(data)
     -- Name
     link = string.gsub(link, "%%name%%", function() return name end);
 
-    -- Creating the frame
-    if ATLFrame == nil then
-
-        ATLFrame = CreateFrame("Frame", "ATLEditBox", UIParent, "DialogBoxFrame");
-        ATLFrame:SetPoint("CENTER");
-        ATLFrame:SetSize(600, 180);
-
-        ATLFrame:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\PVPFrame\\UI-Character-PVP-Highlight",
-            edgeSize = 16,
-            insets = { left = 8, right = 6, top = 8, bottom = 8 },
-        })
-        ATLFrame:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.6);
-
-        -- EditBox
-        ATLFrameEditBox = CreateFrame("EditBox", "ATLEditBoxInputBox", ATLFrame, "InputBoxTemplate");
-        ATLFrameEditBox:SetWidth(500);
-        ATLFrameEditBox:SetHeight(40);
-        ATLFrameEditBox:SetPoint("CENTER", 0, 0);
-        ATLFrameEditBox:SetAutoFocus(true);
-        ATLFrameEditBox:SetScript("OnEscapePressed", function() ATLFrame:Hide() end)
-        ATLFrameEditBoxLabel = ATLFrameEditBox:CreateFontString(nil, "BACKGROUND", "GameFontNormal");
-        ATLFrameEditBoxLabel:SetPoint("TOP", ATLFrameEditBox, "TOP", 0, 45);
-
-        ATLFrameEditBoxDescription = ATLFrameEditBox:CreateFontString(nil, "BACKGROUND", "GameFontNormal");
-        ATLFrameEditBoxDescription:SetText(L["LINKDESC"]);
-        ATLFrameEditBoxDescription:SetPoint("TOP", ATLFrameEditBox, "TOP", 0, 25);
-        ATLFrameEditBoxDescription:SetWordWrap(true);
-        ATLFrameEditBoxDescription:SetNonSpaceWrap(true);
-        ATLFrameEditBoxDescription:SetTextColor(1, 1, 1, 1);
-
-        tinsert(UISpecialFrames, ATLFrame:GetName());
-    end
-
-    ATLFrameEditBox:SetText(link);
-    ATLFrameEditBox:HighlightText();
-    ATLFrameEditBoxLabel:SetText(L["LINKTO"] .. L[site]);
-    ATLFrame:Show();
+    showLinkFrame(site, link);
 end
 
 local function isSecret(value)
@@ -191,7 +381,8 @@ local function AddATLMenu(ownerRegion, rootDescription, contextData)
     local submenu = rootDescription:CreateButton(L["TITLE"])
 
     for _, value in ipairs(LINKS_LIST) do
-        submenu:CreateButton(L[value], openLinkFrame, {name = name, realm = server, site = value})
+        local label = "|TInterface\\AddOns\\" .. addonName .. "\\images\\" .. ICONS[value] .. ".png:16:16|t " .. L[value];
+        submenu:CreateButton(label, openLinkFrame, {name = name, realm = server, site = value})
     end
 end
 
