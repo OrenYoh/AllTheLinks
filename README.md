@@ -2,7 +2,7 @@
 <p align="center"><img src="https://media.forgecdn.net/attachments/description/819298/description_a0fe3d9d-d856-4ce7-a85e-64d49a1cddd0.png" alt="AllTheLinks icon" width="300" height="300"></p>
 <p align="center"><a href="https://www.curseforge.com/wow/addons/all-the-links" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/CurseForge-AllTheLinks-EB622B.svg?style=flat" alt="CurseForge AllTheLinks"></a> <a href="https://addons.wago.io/addons/all-the-links" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/Wago-AllTheLinks-B71D23.svg?style=flat" alt="Wago AllTheLinks"></a></p>
 <p>AllTheLinks is a World of Warcraft addon that gives you easy access to all the links to ranking websites of players you come across in the game: Wow Armory, Check-PvP, Raider.io, Warcraft Logs, WoWProgress&hellip;</p>
-<p>It's available on retail, and on Mists of Pandaria Classic and WoW: Forever with the WoW Armory and Raider.io links only.</p>
+<p>It's available on retail, and on Mists of Pandaria Classic, Anniversary, Classic Era and WoW: Forever with the WoW Armory and Raider.io links only.</p>
 <h2>Example</h2>
 <p><img src="https://media.forgecdn.net/attachments/614/4/atl-example.png" alt="example"></p>
 <h2>Error when opening a link?</h2>

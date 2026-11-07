@@ -1,4 +1,4 @@
-## Interface: 120105, 50504, 16001
+## Interface: 120105, 50504, 20506, 16001, 11509
 ## Title: AllTheLinks
 ## Notes: Adds external profile links from several sites to players drop down menu.
 ## Version: 3.0.0

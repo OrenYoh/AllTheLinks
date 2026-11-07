@@ -9,6 +9,9 @@ local REALMSDATA = ns.realmsData;
 -- another missing one.
 local IS_FOREVER = WOW_PROJECT_CAMELOT ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT;
 local IS_MISTS = WOW_PROJECT_MISTS_CLASSIC ~= nil and WOW_PROJECT_ID == WOW_PROJECT_MISTS_CLASSIC;
+local IS_ERA = WOW_PROJECT_CLASSIC ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CLASSIC;
+-- The Anniversary realms (now on The Burning Crusade) run the Burning Crusade Classic client
+local IS_ANNIVERSARY = WOW_PROJECT_BURNING_CRUSADE_CLASSIC ~= nil and WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC;
 
 local LINKS_LIST, LINKS;
 
@@ -26,6 +29,19 @@ elseif IS_MISTS then
     LINKS = {
         ["ARMORY"] = "https://worldofwarcraft.blizzard.com/%regionLocale%/classic/%region%/armory/character/%realmLower%/%name%",
         ["RAIDERIO"] = "https://classic.raider.io/characters/%region%/%realmLower%/%name%",
+    };
+elseif IS_ERA then
+    LINKS_LIST = {"ARMORY", "RAIDERIO"};
+    LINKS = {
+        ["ARMORY"] = "https://worldofwarcraft.blizzard.com/%regionLocale%/classic1x/%region%/armory/character/%realmLower%/%name%",
+        ["RAIDERIO"] = "https://era.raider.io/characters/%region%/%realmLower%/%name%",
+    };
+elseif IS_ANNIVERSARY then
+    -- Its armory is its own, its raider.io profiles are on the Era site
+    LINKS_LIST = {"ARMORY", "RAIDERIO"};
+    LINKS = {
+        ["ARMORY"] = "https://worldofwarcraft.blizzard.com/%regionLocale%/classicann/%region%/armory/character/%realmLower%/%name%",
+        ["RAIDERIO"] = "https://era.raider.io/characters/%region%/%realmLower%/%name%",
     };
 else
     LINKS_LIST = {"ARMORY", "CHECKPVP", "RAIDERIO", "WARCRAFTLOGS", "WOWPROGRESS"};
