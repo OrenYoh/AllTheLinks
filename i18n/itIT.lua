@@ -10,6 +10,7 @@ L["LINKTO"] = "Link a: ";
 L["COPYHINT"] = "Premi Ctrl+C per copiare il link e chiudere questa finestra.";
 L["LINKCOPIED"] = "Link copiato: ";
 L["LINKDESC"] = "In caso di errore, il profilo del giocatore potrebbe non esistere ancora sul sito\n(nessuno ne ha mai chiesto la scansione) e potresti doverlo cercare manualmente.";
+L["ARMORYLEVEL"] = "L'armeria contiene solo personaggi dal livello %d.";
 
 L["ARMORY"] = "Armeria di WoW";
 L["CHECKPVP"] = "Check PvP";

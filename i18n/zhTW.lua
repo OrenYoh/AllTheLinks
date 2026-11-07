@@ -12,6 +12,7 @@ L["LINKTO"] = "引導至：";
 L["COPYHINT"] = "按 Ctrl+C 複製連結並關閉此視窗。";
 L["LINKCOPIED"] = "連結已複製：";
 L["LINKDESC"] = "如果出現錯誤就代表該網站還未收錄該玩家的資料。";
+L["ARMORYLEVEL"] = "英雄榜僅收錄%d級以上的角色。";
 
 L["ARMORY"] = "英雄榜";
 L["CHECKPVP"] = "Check PvP";

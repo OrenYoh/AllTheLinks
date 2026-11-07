@@ -4,14 +4,42 @@ local L = ns.L;
 local REALMS = ns.realmsNames;
 local REALMSDATA = ns.realmsData;
 
-local LINKS_LIST = {"ARMORY", "CHECKPVP", "RAIDERIO", "WARCRAFTLOGS", "WOWPROGRESS"};
-local LINKS = {
-    ["ARMORY"] = "https://worldofwarcraft.com/%regionLocale%/character/%region%/%realmLower%/%name%",
-    ["RAIDERIO"] = "https://raider.io/characters/%region%/%realmLower%/%name%",
-    ["CHECKPVP"] = "https://check-pvp.com/%region%/%realmSimplified%/%name%",
-    ["WOWPROGRESS"] = "https://www.wowprogress.com/character/%region%/%realmLower%/%name%",
-    ["WARCRAFTLOGS"] = "https://www.warcraftlogs.com/character/%region%/%realmLower%/%name%"
-};
+-- The game version the addon runs on. WoW: Forever (codename Camelot) defines WOW_PROJECT_CAMELOT
+-- and sets WOW_PROJECT_ID to it; the "~= nil" checks keep a missing constant from matching
+-- another missing one.
+local IS_FOREVER = WOW_PROJECT_CAMELOT ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT;
+local IS_MISTS = WOW_PROJECT_MISTS_CLASSIC ~= nil and WOW_PROJECT_ID == WOW_PROJECT_MISTS_CLASSIC;
+
+local LINKS_LIST, LINKS;
+
+if IS_FOREVER then
+    -- Forever's armory has no realm and its names have two parts ("Kaaya Dediclo" is
+    -- "kaaya-dediclo"); raider.io names the realm by its type ("normal", "pvp", "rp", "pvp-rp")
+    -- and keeps the name as the game writes it.
+    LINKS_LIST = {"ARMORY", "RAIDERIO"};
+    LINKS = {
+        ["ARMORY"] = "https://worldofwarcraft.blizzard.com/%regionLocale%/forever/%region%/armory/character/%nameSlug%",
+        ["RAIDERIO"] = "https://forever.raider.io/characters/%region%/%realmType%/%nameEncoded%",
+    };
+elseif IS_MISTS then
+    LINKS_LIST = {"ARMORY", "RAIDERIO"};
+    LINKS = {
+        ["ARMORY"] = "https://worldofwarcraft.blizzard.com/%regionLocale%/classic/%region%/armory/character/%realmLower%/%name%",
+        ["RAIDERIO"] = "https://classic.raider.io/characters/%region%/%realmLower%/%name%",
+    };
+else
+    LINKS_LIST = {"ARMORY", "CHECKPVP", "RAIDERIO", "WARCRAFTLOGS", "WOWPROGRESS"};
+    LINKS = {
+        ["ARMORY"] = "https://worldofwarcraft.com/%regionLocale%/character/%region%/%realmLower%/%name%",
+        ["RAIDERIO"] = "https://raider.io/characters/%region%/%realmLower%/%name%",
+        ["CHECKPVP"] = "https://check-pvp.com/%region%/%realmSimplified%/%name%",
+        ["WOWPROGRESS"] = "https://www.wowprogress.com/character/%region%/%realmLower%/%name%",
+        ["WARCRAFTLOGS"] = "https://www.warcraftlogs.com/character/%region%/%realmLower%/%name%"
+    };
+end
+
+-- Blizzard's armory only has pages for characters from this level
+local ARMORY_MIN_LEVEL = 10;
 
 -- Site icons (the sites' favicons), shown before each link in the menu
 local ICONS = {
@@ -91,6 +119,23 @@ local function getRealmSlug(realm)
     slug = string.gsub(slug, "%-$", "");
 
     return string.lower(slug);
+end
+
+-- Forever realm type as raider.io names it, from the end of the realm's name ("CAMWOW EU5 Realm 3
+-- PvE" is "normal"). Other players' realms come without spaces ("CAMWOWEU5Realm3PvE"), so only
+-- letters are compared.
+local function getRealmType(realm)
+    local letters = string.lower((string.gsub(realm, "[^%a]", "")));
+
+    if string.find(letters, "pvprp$") or string.find(letters, "rppvp$") then
+        return "pvp-rp";
+    elseif string.find(letters, "pvp$") then
+        return "pvp";
+    elseif string.find(letters, "rp$") then
+        return "rp";
+    end
+
+    return "normal";
 end
 
 -- The link popup: a dark panel with a thin edge, a soft glow along its top, the site's icon and
@@ -329,6 +374,7 @@ local function openLinkFrame(data)
 
     -- Values are inserted with a replacement function so a "%" in them is never read as a pattern
     link = string.gsub(link, "%%realmLower%%", function() return getRealmSlug(realm) end);
+    link = string.gsub(link, "%%realmType%%", function() return getRealmType(realm) end);
     link = string.gsub(link, "%%realmSimplified%%", function()
         return realmsSimplifiedNameByName[(string.gsub(realm, " ", ""))] or realm;
     end);
@@ -345,12 +391,49 @@ local function openLinkFrame(data)
 
     -- Name
     link = string.gsub(link, "%%name%%", function() return name end);
+    link = string.gsub(link, "%%nameSlug%%", function() return string.lower((string.gsub(name, "%s+", "-"))) end);
+    link = string.gsub(link, "%%nameEncoded%%", function() return (string.gsub(name, " ", "%%20")) end);
 
     showLinkFrame(site, link);
 end
 
 local function isSecret(value)
     return issecretvalue ~= nil and issecretvalue(value);
+end
+
+-- Forever names have two parts. Its menus opened on a unit get them apart (contextData.name and
+-- contextData.surname, from UnitNameUnmodified, which gives the surname where other games give the
+-- realm); the others get the whole name, which may end with "-Realm". The game shows the parts
+-- with its surname separator; the links are built from them joined with a space.
+local function getForeverName(contextData, name, server)
+    local surname = contextData.surname;
+
+    if type(surname) == "string" and not isSecret(surname) and surname ~= "" then
+        return name .. " " .. surname, server;
+    end
+
+    local consts = Constants and Constants.CharacterNameSeparatorConsts;
+    local separator = consts and consts.CHARACTERNAME_SURNAME_SEPARATOR or " ";
+
+    if separator ~= "-" then
+        local fullName, realm = strmatch(name, "^([^-]+)-(.+)$");
+
+        if fullName then
+            name = fullName;
+            if type(server) ~= "string" or server == "" then
+                server = realm;
+            end
+        end
+    end
+
+    if separator ~= " " and separator ~= "" then
+        local first, last = strmatch(name, "^(.-)" .. string.gsub(separator, "%p", "%%%0") .. "(.+)$");
+        if first and first ~= "" then
+            name = first .. " " .. last;
+        end
+    end
+
+    return name, server;
 end
 
 local function AddATLMenu(ownerRegion, rootDescription, contextData)
@@ -370,6 +453,10 @@ local function AddATLMenu(ownerRegion, rootDescription, contextData)
         return;
     end
 
+    if IS_FOREVER then
+        name, server = getForeverName(contextData, name, server);
+    end
+
     if type(server) ~= "string" or server == "" then
         server = GetRealmName();
     end
@@ -380,9 +467,22 @@ local function AddATLMenu(ownerRegion, rootDescription, contextData)
 
     local submenu = rootDescription:CreateButton(L["TITLE"])
 
+    -- The player's level, when the menu opened on a unit (nil from lists: friends, guild...). 0 is
+    -- an unknown level and -1 one far above the player's, so only 1 to 9 is too low for the armory.
+    local level = contextData.unit and UnitLevel(contextData.unit);
+    local tooLowForArmory = type(level) == "number" and not isSecret(level) and level > 0 and level < ARMORY_MIN_LEVEL;
+
     for _, value in ipairs(LINKS_LIST) do
         local label = "|TInterface\\AddOns\\" .. addonName .. "\\images\\" .. ICONS[value] .. ".png:16:16|t " .. L[value];
-        submenu:CreateButton(label, openLinkFrame, {name = name, realm = server, site = value})
+        local button = submenu:CreateButton(label, openLinkFrame, {name = name, realm = server, site = value})
+
+        if value == "ARMORY" and tooLowForArmory then
+            button:SetEnabled(false);
+            button:SetTooltip(function(tooltip)
+                GameTooltip_SetTitle(tooltip, L[value]);
+                GameTooltip_AddErrorLine(tooltip, string.format(L["ARMORYLEVEL"], ARMORY_MIN_LEVEL));
+            end);
+        end
     end
 end
 
